@@ -2,8 +2,13 @@ name: Sync Keep to Notion
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # 每天北京时间上午10点执行（UTC+8）
-  workflow_dispatch:
+    - cron: '0 19 * * *'  # 每天 03:00（UTC）= 北京时间 11:00
+    - cron: '0 1 * * *'   # 每天 09:00（UTC）= 北京时间 17:00
+    - cron: '0 6 * * *'   # 每天 14:00（UTC）= 北京时间 22:00
+    - cron: '0 11 * * *'  # 每天 19:00（UTC）= 北京时间 03:00（第二天）
+
+  workflow_dispatch:  # 允许手动触发
+
 
 jobs:
   sync:
