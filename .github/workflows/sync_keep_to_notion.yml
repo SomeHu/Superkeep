@@ -28,4 +28,4 @@ jobs:
           KEEP_MOBILE: ${{ secrets.KEEP_MOBILE }}
           KEEP_PASSWORD: ${{ secrets.KEEP_PASSWORD }}
         run: |
-          python scripts/keep_to_notion_sync.py
+          python sync_keep_to_notion.py
