@@ -39,6 +39,19 @@ def login():
     print("❌ Keep 登录失败", r.text)
     return None
 
+# ====== 获取图标 ======
+def get_icon(activity_type):
+    icons = {
+        "跑步": "🏃",
+        "骑行": "🚴",
+        "步行": "🥾",
+        "徒步": "🥾",
+        "力量训练": "🏋️",
+        "瑜伽": "🧘‍♀️",
+        "自由训练": "🤸",
+    }
+    return icons.get(activity_type, "🏃")  # 默认图标
+
 # ====== Get all workout logs (basic) ======
 def get_all_logs():
     last_date = 0
@@ -84,31 +97,20 @@ def push_to_notion(item):
     if check_duplicate(item["id"]):
         print(f"⚠️ 重复记录已存在: {item['id']}")
         return
-    def get_icon(activity_type):
-        icons = {
-            "跑步": "🏃",
-            "骑行": "🚴",
-            "步行": "🥾",
-            "徒步": "🥾",
-            "力量训练": "🏋️",
-            "瑜伽": "🧘‍♀️",
-            "自由训练": "🤸",
-        }
-    return icons.get(activity_type, "🏃")  # 默认跑步
-
 
     notion_payload = {
-    "parent": {"database_id": NOTION_DATABASE_ID},
-    "properties": {
-        "运动类型": {"title": [{"text": {"content": item["type"]}}]},
-        "距离": {"number": item["distance"]},
-        "时长": {"number": item["duration"]},
-        "日期": {"date": {"start": item["date"]}},
-        "Id": {"rich_text": [{"text": {"content": item["id"]}}]}
-    },
-    "cover": {"external": {"url": item["track"]}},
-    "icon": {"emoji": get_icon(item["type"])}  # ✅ 放这里才对
-}
+        "parent": {"database_id": NOTION_DATABASE_ID},
+        "properties": {
+            "运动类型": {"title": [{"text": {"content": item["type"]}}]},
+            "距离": {"number": item["distance"]},
+            "时长": {"number": item["duration"]},
+            "日期": {"date": {"start": item["date"]}},
+            "Id": {"rich_text": [{"text": {"content": item["id"]}}]}
+        },
+        "cover": {"external": {"url": item["track"]}},
+        "icon": {"emoji": get_icon(item["type"])}
+    }
+
     r = requests.post("https://api.notion.com/v1/pages", headers=notion_headers, json=notion_payload)
     if r.ok:
         print(f"✅ 同步成功: {item['date']} - {item['type']}")
@@ -123,7 +125,6 @@ def main():
     keep_headers["Authorization"] = f"Bearer {token}"
 
     START_DATE = datetime(2025, 1, 1)
-
     logs = get_all_logs()
     logs = [log for log in logs if log.get("endTime", 0) / 1000 >= START_DATE.timestamp()]
 
