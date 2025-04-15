@@ -114,7 +114,6 @@ START_DATE = datetime(2025, 1, 1)
 
 logs = get_all_logs()
 logs = [log for log in logs if log.get("endTime", 0) / 1000 >= START_DATE.timestamp()]
-
 print(f"📦 获取记录 {len(logs)} 条")
     for log in logs:
         detail = get_workout_detail(log)
