@@ -115,19 +115,19 @@ START_DATE = datetime(2025, 1, 1)
 logs = get_all_logs()
 logs = [log for log in logs if log.get("endTime", 0) / 1000 >= START_DATE.timestamp()]
 print(f"📦 获取记录 {len(logs)} 条")
-    for log in logs:
-        detail = get_workout_detail(log)
-        if not detail:
-            continue
-        item = {
-            "id": detail.get("id"),
-            "type": log.get("name"),
-            "distance": round(detail.get("distance", 0), 2),
-            "duration": round(detail.get("duration", 0) / 60, 1),
-            "date": pendulum.from_timestamp(detail.get("endTime") / 1000, tz="Asia/Shanghai").to_date_string(),
-            "track": detail.get("shareImg") or log.get("trackWaterMark")
-        }
-        push_to_notion(item)
+for log in logs:
+    detail = get_workout_detail(log)
+    if not detail:
+        continue
+    item = {
+        "id": detail.get("id"),
+        "type": log.get("name"),
+        "distance": round(detail.get("distance", 0), 2),
+        "duration": round(detail.get("duration", 0) / 60, 1),
+        "date": pendulum.from_timestamp(detail.get("endTime") / 1000, tz="Asia/Shanghai").to_date_string(),
+        "track": detail.get("shareImg") or log.get("trackWaterMark")
+    }
+    push_to_notion(item)
 
 if __name__ == "__main__":
     main()
