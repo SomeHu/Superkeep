@@ -1,115 +1,128 @@
-import requests
-import json
 import os
-from datetime import datetime
+import requests
+import pendulum
+from dotenv import load_dotenv
 
-# ==== Notion 设置 ====
-NOTION_API_TOKEN = os.getenv("NOTION_TOKEN")
+# ====== 配置 ======
+load_dotenv()
+
+NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
-
-notion_headers = {
-    "Authorization": f"Bearer {NOTION_API_TOKEN}",
-    "Content-Type": "application/json",
-    "Notion-Version": "2022-06-28",
-}
-
-# ==== Keep 账号 ====
 KEEP_MOBILE = os.getenv("KEEP_MOBILE")
 KEEP_PASSWORD = os.getenv("KEEP_PASSWORD")
 
-# ==== 本地存储 ====
-SYNC_FILE = "last_sync.json"
+# ====== Notion headers ======
+notion_headers = {
+    "Authorization": f"Bearer {NOTION_TOKEN}",
+    "Content-Type": "application/json",
+    "Notion-Version": "2022-06-28"
+}
 
-# ========== 登录 Keep（模拟） ==========
-def login_keep(mobile, password):
-    # TODO：替换为真实 Keep 登录接口
-    print(f"🔐 登录 Keep 账号：{mobile}")
-    return "mocked_token_123"
+# ====== Keep API config ======
+LOGIN_API = "https://api.gotokeep.com/v1.1/users/login"
+DATA_API = "https://api.gotokeep.com/pd/v3/stats/detail?dateUnit=all&type=all&lastDate={last_date}"
+LOG_API = "https://api.gotokeep.com/pd/v3/{type}log/{id}"
 
-# ========== 获取 Keep 历史记录（模拟） ==========
-def fetch_keep_records(token):
-    # TODO：替换为真实 Keep 接口，拿到所有记录（可分页）
-    return [
-        {
-            "type": "跑步",
-            "distance": 5.21,
-            "duration": 33,
-            "date": "2025-04-11",
-            "track_image_url": "https://example.com/track1.jpg",
-        },
-        {
-            "type": "骑行",
-            "distance": 9.42,
-            "duration": 50,
-            "date": "2025-04-12",
-            "track_image_url": "https://example.com/track2.jpg",
-        }
-    ]
+keep_headers = {
+    "User-Agent": "Mozilla/5.0",
+    "Content-Type": "application/x-www-form-urlencoded;charset=utf-8"
+}
 
-# ========== 工具函数 ==========
-def get_last_sync_time():
-    if os.path.exists(SYNC_FILE):
-        with open(SYNC_FILE, 'r') as f:
-            data = json.load(f)
-            return datetime.strptime(data["last_sync"], "%Y-%m-%d")
-    return datetime.strptime("2025-01-01", "%Y-%m-%d")
+# ====== Keep login ======
+def login():
+    data = {"mobile": KEEP_MOBILE, "password": KEEP_PASSWORD}
+    r = requests.post(LOGIN_API, headers=keep_headers, data=data)
+    if r.ok:
+        print("✅ Keep 登录成功")
+        return r.json()["data"]["token"]
+    print("❌ Keep 登录失败", r.text)
+    return None
 
-def save_last_sync_time():
-    with open(SYNC_FILE, 'w') as f:
-        json.dump({"last_sync": datetime.now().strftime("%Y-%m-%d")}, f)
+# ====== Get all workout logs (basic) ======
+def get_all_logs():
+    last_date = 0
+    logs = []
+    while True:
+        r = requests.get(DATA_API.format(last_date=last_date), headers=keep_headers)
+        if not r.ok:
+            break
+        data = r.json().get("data", {})
+        last_date = data.get("lastTimestamp")
+        for record in data.get("records", []):
+            for log in record.get("logs", []):
+                if log.get("type") == "stats":
+                    logs.append(log.get("stats"))
+        if not last_date:
+            break
+    return logs
 
-def get_new_records(records, last_sync_time):
-    new_data = []
-    for item in records:
-        record_time = datetime.strptime(item["date"], "%Y-%m-%d")
-        if record_time > last_sync_time:
-            new_data.append(item)
-    return new_data
+# ====== Get detailed workout info ======
+def get_workout_detail(log):
+    url = LOG_API.format(type=log.get("type"), id=log.get("id"))
+    r = requests.get(url, headers=keep_headers)
+    if not r.ok:
+        return None
+    return r.json().get("data")
 
-# ========== 同步到 Notion ==========
-def add_to_notion(data):
-    url = "https://api.notion.com/v1/pages"
+# ====== Check if page with same ID already exists ======
+def check_duplicate(workout_id):
+    query_url = f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}/query"
     payload = {
-        "parent": {"database_id": NOTION_DATABASE_ID},
-        "properties": {
-            "运动类型": {"title": [{"text": {"content": data["type"]}}]},
-            "距离": {"number": data["distance"]},
-            "时长": {"number": data["duration"]},
-            "日期": {"date": {"start": data["date"]}},
-            "轨迹图": {
-                "files": [{
-                    "name": "track_image",
-                    "external": {"url": data["track_image_url"]}
-                }]
-            }
+        "filter": {
+            "property": "Id",
+            "rich_text": {"equals": workout_id}
         }
     }
+    r = requests.post(query_url, headers=notion_headers, json=payload)
+    if r.ok and r.json().get("results"):
+        return True
+    return False
 
-    response = requests.post(url, headers=notion_headers, json=payload)
-    if response.status_code == 200:
-        print(f"✅ 成功同步：{data['date']} - {data['type']}")
-    else:
-        print(f"❌ 同步失败：{data['date']} 状态码 {response.status_code}")
-        print("错误内容：", response.text)
-
-# ========== 主程序 ==========
-def main():
-    print("🚀 正在开始同步 Keep 数据...")
-    token = login_keep(KEEP_MOBILE, KEEP_PASSWORD)
-    records = fetch_keep_records(token)
-    last_sync = get_last_sync_time()
-    new_records = get_new_records(records, last_sync)
-
-    if not new_records:
-        print("📭 无需同步，新数据为空。")
+# ====== Push to Notion ======
+def push_to_notion(item):
+    if check_duplicate(item["id"]):
+        print(f"⚠️ 重复记录已存在: {item['id']}")
         return
 
-    print(f"📌 本次需要同步 {len(new_records)} 条记录")
-    for record in new_records:
-        add_to_notion(record)
+    notion_payload = {
+        "parent": {"database_id": NOTION_DATABASE_ID},
+        "properties": {
+            "运动类型": {"title": [{"text": {"content": item["type"]}}]},
+            "距离": {"number": item["distance"]},
+            "时长": {"number": item["duration"]},
+            "日期": {"date": {"start": item["date"]}},
+            "Id": {"rich_text": [{"text": {"content": item["id"]}}]}
+        },
+        "cover": {"external": {"url": item["track"]}}
+    }
+    r = requests.post("https://api.notion.com/v1/pages", headers=notion_headers, json=notion_payload)
+    if r.ok:
+        print(f"✅ 同步成功: {item['date']} - {item['type']}")
+    else:
+        print(f"❌ 同步失败: {item['date']} - {item['type']}\n{r.text}")
 
-    save_last_sync_time()
-    print("🎉 同步完成！")
+# ====== Main ======
+def main():
+    token = login()
+    if not token:
+        return
+    keep_headers["Authorization"] = f"Bearer {token}"
+
+    logs = get_all_logs()
+    print(f"📦 获取记录 {len(logs)} 条")
+    for log in logs:
+        detail = get_workout_detail(log)
+        if not detail:
+            continue
+        item = {
+            "id": detail.get("id"),
+            "type": log.get("name"),
+            "distance": round(detail.get("distance", 0), 2),
+            "duration": round(detail.get("duration", 0) / 60, 1),
+            "date": pendulum.from_timestamp(detail.get("endTime") / 1000, tz="Asia/Shanghai").to_date_string(),
+            "track": detail.get("shareImg") or log.get("trackWaterMark")
+        }
+        push_to_notion(item)
 
 if __name__ == "__main__":
     main()
