@@ -97,18 +97,17 @@ def push_to_notion(item):
     return icons.get(activity_type, "🏃")  # 默认跑步
 
     notion_payload = {
-        "parent": {"database_id": NOTION_DATABASE_ID},
-        "properties": {
-            
-            "运动类型": {"title": [{"text": {"content": item["type"]}}]},
-            "距离": {"number": item["distance"]},
-            "时长": {"number": item["duration"]},
-            "日期": {"date": {"start": item["date"]}},
-            "Id": {"rich_text": [{"text": {"content": item["id"]}}]}
-        },
-        "icon": {"emoji": get_icon(item["type"])}
-        "cover": {"external": {"url": item["track"]}}
-    }
+    "parent": {"database_id": NOTION_DATABASE_ID},
+    "properties": {
+        "运动类型": {"title": [{"text": {"content": item["type"]}}]},
+        "距离": {"number": item["distance"]},
+        "时长": {"number": item["duration"]},
+        "日期": {"date": {"start": item["date"]}},
+        "Id": {"rich_text": [{"text": {"content": item["id"]}}]}
+    },
+    "cover": {"external": {"url": item["track"]}},
+    "icon": {"emoji": get_icon(item["type"])}  # ✅ 放这里才对
+}
     r = requests.post("https://api.notion.com/v1/pages", headers=notion_headers, json=notion_payload)
     if r.ok:
         print(f"✅ 同步成功: {item['date']} - {item['type']}")
