@@ -101,7 +101,7 @@ def push_to_notion(item):
     # 检查封面图 URL 是否有效，若无则使用默认封面图
     track_url = item["track"]
     if not track_url:
-        track_url = "https://sm.ms/image/tA5IGTWy9FEpo2V"  # 默认封面图 URL
+        track_url = "https://github.com/SomeHu/Superkeep/blob/main/151.png"  # 默认封面图 URL
 
     notion_payload = {
         "parent": {"database_id": NOTION_DATABASE_ID},
