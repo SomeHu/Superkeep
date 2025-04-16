@@ -98,6 +98,11 @@ def push_to_notion(item):
         print(f"⚠️ 重复记录已存在: {item['id']}")
         return
 
+    # 检查封面图 URL 是否有效，若无则使用默认封面图
+    track_url = item["track"]
+    if not track_url:
+        track_url = "https://sm.ms/image/tA5IGTWy9FEpo2V"  # 默认封面图 URL
+
     notion_payload = {
         "parent": {"database_id": NOTION_DATABASE_ID},
         "properties": {
@@ -107,7 +112,7 @@ def push_to_notion(item):
             "日期": {"date": {"start": item["date"]}},
             "Id": {"rich_text": [{"text": {"content": item["id"]}}]}
         },
-        "cover": {"external": {"url": item["track"]}},
+        "cover": {"external": {"url": track_url}},
         "icon": {"emoji": get_icon(item["type"])}
     }
 
