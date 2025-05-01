@@ -93,6 +93,7 @@ def check_duplicate(workout_id):
     return False
 
 # ====== Push to Notion ======
+# ====== Push to Notion ======
 def push_to_notion(item):
     if check_duplicate(item["id"]):
         print(f"⚠️ 重复记录已存在: {item['id']}")
@@ -109,7 +110,8 @@ def push_to_notion(item):
         # URL 超长或无效，尝试上传或使用默认 URL
         if cover:
             try:
-                cover = utils.upload_cover(cover)  # 假设此函数返回短 URL
+                # 假设 utils.upload_cover 返回短 URL
+                cover = utils.upload_cover(cover)
                 if not cover or len(cover) > 2000:
                     # 上传失败或仍超长，使用默认 URL
                     cover = "https://images.unsplash.com/photo-1547483238-f400e65ccd56?q=80&w=2970&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
@@ -119,6 +121,9 @@ def push_to_notion(item):
         else:
             # 无封面 URL，直接使用默认
             cover = "https://images.unsplash.com/photo-1547483238-f400e65ccd56?q=80&w=2970&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+
+    # 调试：输出 cover URL 信息
+    print(f"调试: cover 长度={len(cover)}, URL={cover}")
 
     # 构建 Notion 页面数据
     notion_payload = {
@@ -134,6 +139,12 @@ def push_to_notion(item):
         "icon": {"emoji": get_icon(item["type"])}
     }
 
+    # 直接调用 Notion API
+    r = requests.post("https://api.notion.com/v1/pages", headers=notion_headers, json=notion_payload)
+    if r.ok:
+        print(f"✅ 同步成功: {item['date']} - {item['type']}")
+    else:
+        print(f"❌ 同步失败: {item['date']} - {item['type']}\n{r.text}")
     # 调用 Notion API 创建页面
     try:
         # 假设 notion_helper.create_page 是一个封装好的函数
