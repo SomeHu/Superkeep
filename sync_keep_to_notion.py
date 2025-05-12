@@ -89,10 +89,10 @@ def check_duplicate(workout_id):
     }
     r = requests.post(query_url, headers=notion_headers, json=payload)
     if r.ok and r.json().get("results"):
+        print(f"⚠️ 重复记录已存在: {workout_id}")
         return True
     return False
 
-# ====== Push to Notion ======
 # ====== Push to Notion ======
 def push_to_notion(item):
     if check_duplicate(item["id"]):
@@ -104,22 +104,18 @@ def push_to_notion(item):
     
     # 处理封面 URL
     if cover and len(cover) <= 2000:
-        # URL 有效且长度合适，直接使用
         pass
     else:
-        # URL 超长或无效，尝试上传或使用默认 URL
         if cover:
             try:
                 # 假设 utils.upload_cover 返回短 URL
                 cover = utils.upload_cover(cover)
                 if not cover or len(cover) > 2000:
-                    # 上传失败或仍超长，使用默认 URL
                     cover = "https://images.unsplash.com/photo-1547483238-f400e65ccd56?q=80&w=2970&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
             except Exception as e:
                 print(f"⚠️ 封面上传失败: {e}")
                 cover = "https://images.unsplash.com/photo-1547483238-f400e65ccd56?q=80&w=2970&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
         else:
-            # 无封面 URL，直接使用默认
             cover = "https://images.unsplash.com/photo-1547483238-f400e65ccd56?q=80&w=2970&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
 
     # 调试：输出 cover URL 信息
@@ -140,39 +136,6 @@ def push_to_notion(item):
     }
 
     # 直接调用 Notion API
-    r = requests.post("https://api.notion.com/v1/pages", headers=notion_headers, json=notion_payload)
-    if r.ok:
-        print(f"✅ 同步成功: {item['date']} - {item['type']}")
-    else:
-        print(f"❌ 同步失败: {item['date']} - {item['type']}\n{r.text}")
-    # 调用 Notion API 创建页面
-    try:
-        # 假设 notion_helper.create_page 是一个封装好的函数
-        notion_helper.create_page(parent=notion_payload["parent"], properties=notion_payload["properties"], 
-                                cover=notion_payload["cover"], icon=notion_payload["icon"])
-        print(f"✅ 同步成功: {item['date']} - {item['type']}")
-    except Exception as e:
-        print(f"❌ 同步失败: {item['date']} - {item['type']}\n{e}")
-
-
-    # 检查封面图 URL 是否有效，若无则使用默认封面图
-    track_url = item["track"]
-    if not track_url:
-        track_url = "https://raw.githubusercontent.com/SomeHu/Superkeep/main/151.png"  # 默认封面图 URL
-
-    notion_payload = {
-        "parent": {"database_id": NOTION_DATABASE_ID},
-        "properties": {
-            "运动类型": {"title": [{"text": {"content": item["type"]}}]},
-            "距离": {"number": item["distance"]},
-            "时长": {"number": item["duration"]},
-            "日期": {"date": {"start": item["date"]}},
-            "Id": {"rich_text": [{"text": {"content": item["id"]}}]}
-        },
-        "cover": {"external": {"url": track_url}},
-        "icon": {"emoji": get_icon(item["type"])}
-    }
-
     r = requests.post("https://api.notion.com/v1/pages", headers=notion_headers, json=notion_payload)
     if r.ok:
         print(f"✅ 同步成功: {item['date']} - {item['type']}")
