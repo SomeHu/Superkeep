@@ -106,13 +106,14 @@ def get_workout_detail(session: Session, log: Dict[str, Any]) -> Optional[Dict[s
         logger.error(f"Failed to fetch workout detail: {str(e)}")
         return None
 
-def check_duplicate(session: Session, database_id: str, workout_id: str) -> bool:
+def check_duplicate(session: Session, database_id: str, workout_id: str, date: str) -> bool:
     """Check if workout already exists in Notion."""
     try:
         payload = {
             "filter": {
                 "property": "Id",
-                "rich_text": {"equals": workout_id}
+                "rich_text": {"equals": workout_id},
+                "date": {"equals": date}  # 增加日期判断
             }
         }
         response = session.post(
@@ -121,7 +122,7 @@ def check_duplicate(session: Session, database_id: str, workout_id: str) -> bool
         )
         response.raise_for_status()
         if response.json().get("results"):
-            logger.warning(f"Duplicate record found: {workout_id}")
+            logger.warning(f"Duplicate record found: {workout_id} on {date}")
             return True
         return False
     except requests.RequestException as e:
@@ -136,7 +137,8 @@ def process_cover_url(cover: Optional[str]) -> str:
 
 def push_to_notion(session: Session, database_id: str, item: Dict[str, Any]) -> None:
     """Push workout data to Notion."""
-    if check_duplicate(session, database_id, item["id"]):
+    # 增加对重复数据的检查，传入日期参数
+    if check_duplicate(session, database_id, item["id"], item["date"]):
         return
 
     cover = process_cover_url(item["track"])
@@ -161,6 +163,7 @@ def push_to_notion(session: Session, database_id: str, item: Dict[str, Any]) -> 
         logger.info(f"Successfully synced: {item['date']} - {item['type']}")
     except requests.RequestException as e:
         logger.error(f"Failed to sync: {item['date']} - {item['type']}: {str(e)}")
+
 
 def main():
     """Main function to sync Keep workouts to Notion."""
